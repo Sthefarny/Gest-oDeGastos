@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gráficos - Controle de Gastos</title>
+  <link rel="stylesheet" href="../../global.css" />
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f4f6f8;
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+
+    .filters {
+      margin-bottom: 30px;
+    }
+
+    .filters label {
+      margin-right: 20px;
+    }
+
+    .chart-container {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 400px !important;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- <header>
+    <button onclick="logout()">Sair</button>
+  </header> -->
+
+  <header>
+    <button type="button" onclick="window.location.href='home.html'" class="clear">
+      ← Voltar
+    </button>
+  </header>
+
+  <h1>Gráficos de Transações</h1>
+
+  <div class="filters">
+    <label>Moeda:
+      <select id="filterCurrency">
+        <option value="">Todas</option>
+        <option value="BRL">Real</option>
+        <option value="USD">Dólar</option>
+        <option value="EUR">Euro</option>
+      </select>
+    </label>
+
+    <label>Tipo:
+      <select id="filterType">
+        <option value="">Todos</option>
+        <option value="income">Receita</option>
+        <option value="expense">Despesa</option>
+      </select>
+    </label>
+
+    <label>De:
+      <input type="date" id="filterStartDate">
+    </label>
+
+    <label>Até:
+      <input type="date" id="filterEndDate">
+    </label>
+
+    <button onclick="applyFilters()">Aplicar Filtros</button>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="transactionChart"></canvas>
+  </div>
+  
+
+  
+
+  <!-- Firebase e JS -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+  <script src="../../firebase-init.js"></script>
+  <script src="../../auth-guard.js"></script>
+
+  <script>
+    let transactionChartInstance = null;
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        window.location.href = "../../index.html";
+      }).catch(() => {
+        alert('Erro ao fazer logout');
+      });
+    }
+
+    function applyFilters() {
+      const user = firebase.auth().currentUser;
+      if (user) {
+        renderTransactionChart(user.uid);
+      }
+    }
+
+    function renderTransactionChart(uid) {
+      const currencyFilter = document.getElementById("filterCurrency").value;
+      const typeFilter = document.getElementById("filterType").value;
+      const startDate = document.getElementById("filterStartDate").value;
+      const endDate = document.getElementById("filterEndDate").value;
+
+      let query = firebase.firestore()
+        .collection('transactions')
+        .where('user.uid', '==', uid)
+        .orderBy('date');
+
+      query.get().then(snapshot => {
+        const incomeData = {};
+        const expenseData = {};
+
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const date = data.date;
+          const value = data.money.value;
+          const type = data.type;
+          const currency = data.money.currency;
+
+          if (currencyFilter && currency !== currencyFilter) return;
+          if (typeFilter && type !== typeFilter) return;
+          if (startDate && date < startDate) return;
+          if (endDate && date > endDate) return;
+
+          if (type === 'income') {
+            incomeData[date] = (incomeData[date] || 0) + value;
+          } else if (type === 'expense') {
+            expenseData[date] = (expenseData[date] || 0) + value;
+          }
+        });
+
+        const labels = Array.from(new Set([
+          ...Object.keys(incomeData),
+          ...Object.keys(expenseData)
+        ])).sort();
+
+        const incomeValues = labels.map(date => incomeData[date] || 0);
+        const expenseValues = labels.map(date => expenseData[date] || 0);
+
+        if (transactionChartInstance) {
+          transactionChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('transactionChart').getContext('2d');
+        transactionChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: 'Receitas',
+                data: incomeValues,
+                borderColor: 'green',
+                backgroundColor: 'rgba(0, 128, 0, 0.1)',
+                tension: 0.4
+              },
+              {
+                label: 'Despesas',
+                data: expenseValues,
+                borderColor: 'red',
+                backgroundColor: 'rgba(255, 0, 0, 0.1)',
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: 'top'
+              },
+              tooltip: {
+                mode: 'index',
+                intersect: false
+              }
+            },
+            interaction: {
+              mode: 'nearest',
+              axis: 'x',
+              intersect: false
+            },
+            scales: {
+              x: {
+                title: {
+                  display: true,
+                  text: 'Data'
+                }
+              },
+              y: {
+                title: {
+                  display: true,
+                  text: 'Valor (R$)'
+                }
+              }
+            }
+          }
+        });
+      }).catch(error => {
+        console.error('Erro ao carregar dados para o gráfico:', error);
+      });
+    }
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        renderTransactionChart(user.uid);
+      } else {
+        window.location.href = "../../index.html";
+      }
+    });
+  </script>
+</body>
+</html>
