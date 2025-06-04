@@ -1,0 +1,235 @@
+<!DOCTYPE html> 
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gráficos - Controle de Gastos</title>
+  <link rel="stylesheet" href="charts.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <button type="button" onclick="window.location.href='home.html'" class="clear">
+      Voltar
+    </button>
+  </header>
+
+  <h1>Gráficos de Transações</h1>
+
+  <!-- Filtros -->
+  <div class="filters">
+    <label>Moeda:
+      <select id="filterCurrency">
+        <option value="">Todas</option>
+        <option value="BRL">Real</option>
+        <option value="USD">Dólar</option>
+        <option value="EUR">Euro</option>
+      </select>
+    </label>
+
+    <label>Tipo:
+      <select id="filterType">
+        <option value="">Todos</option>
+        <option value="income">Receita</option>
+        <option value="expense">Despesa</option>
+      </select>
+    </label>
+
+    <label>De:
+      <input type="date" id="filterStartDate">
+    </label>
+
+    <label>Até:
+      <input type="date" id="filterEndDate">
+    </label>
+
+    <button onclick="applyFilters()">Aplicar Filtros</button>
+    <button onclick="resetFilters()">Limpar Filtros</button>
+  </div>
+
+  <!-- Gráfico -->
+  <div class="chart-container">
+    <canvas id="transactionChart"></canvas>
+  </div>
+
+  <!-- Cards de resumo -->
+  <div class="summary-cards">
+    <div class="card income-card">
+      <h3>💰 Total de Receitas</h3>
+      <p>R$ <span id="totalIncome">0.00</span></p>
+    </div>
+    <div class="card expense-card">
+      <h3>💸 Total de Despesas</h3>
+      <p>R$ <span id="totalExpense">0.00</span></p>
+    </div>
+    <div class="card balance-card">
+      <h3>🧾 Saldo Final</h3>
+      <p>R$ <span id="balance">0.00</span></p>
+    </div>
+  </div>
+
+  <!-- Firebase e JS -->
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+  <script src="../../firebase-init.js"></script>
+  <script src="../../auth-guard.js"></script>
+
+  <script>
+    let transactionChartInstance = null;
+    let currentUID = null; // para armazenar o UID atual e facilitar chamadas
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        window.location.href = "../../index.html";
+      }).catch(() => {
+        alert('Erro ao fazer logout');
+      });
+    }
+
+    function formatDateBR(dateString) {
+      const [year, month, day] = dateString.split("-");
+      return `${day}/${month}/${year}`;
+    }
+
+    function applyFilters() {
+      if (currentUID) {
+        renderTransactionChart(currentUID);
+      }
+    }
+
+    function resetFilters() {
+      document.getElementById("filterCurrency").value = "";
+      document.getElementById("filterType").value = "";
+      document.getElementById("filterStartDate").value = "";
+      document.getElementById("filterEndDate").value = "";
+
+      if (currentUID) {
+        renderTransactionChart(currentUID);
+      }
+    }
+
+    function renderTransactionChart(uid) {
+      currentUID = uid; // salva para reutilizar
+
+      const currencyFilter = document.getElementById("filterCurrency").value;
+      const typeFilter = document.getElementById("filterType").value;
+      const startDate = document.getElementById("filterStartDate").value;
+      const endDate = document.getElementById("filterEndDate").value;
+
+      let query = firebase.firestore()
+        .collection('transactions')
+        .where('user.uid', '==', uid)
+        .orderBy('date');
+
+      query.get().then(snapshot => {
+        const incomeData = {};
+        const expenseData = {};
+
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const date = data.date;
+          const value = data.money.value;
+          const type = data.type;
+          const currency = data.money.currency;
+
+          // aplica filtros se existirem
+          if (currencyFilter && currency !== currencyFilter) return;
+          if (typeFilter && type !== typeFilter) return;
+          if (startDate && date < startDate) return;
+          if (endDate && date > endDate) return;
+
+          if (type === 'income') {
+            incomeData[date] = (incomeData[date] || 0) + value;
+          } else if (type === 'expense') {
+            expenseData[date] = (expenseData[date] || 0) + value;
+          }
+        });
+
+        const labels = Array.from(new Set([
+          ...Object.keys(incomeData),
+          ...Object.keys(expenseData)
+        ])).sort();
+
+        const formattedLabels = labels.map(date => formatDateBR(date));
+        const incomeValues = labels.map(date => incomeData[date] || 0);
+        const expenseValues = labels.map(date => expenseData[date] || 0);
+
+        // remove gráfico anterior
+        if (transactionChartInstance) {
+          transactionChartInstance.destroy();
+        }
+
+        const ctx = document.getElementById('transactionChart').getContext('2d');
+        transactionChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: formattedLabels,
+            datasets: [
+              {
+                label: 'Receitas',
+                data: incomeValues,
+                backgroundColor: 'rgba(0, 128, 0, 0.6)',
+                borderColor: 'green',
+                borderWidth: 1
+              },
+              {
+                label: 'Despesas',
+                data: expenseValues,
+                backgroundColor: 'rgba(255, 0, 0, 0.6)',
+                borderColor: 'red',
+                borderWidth: 1
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { position: 'top' },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            interaction: { mode: 'nearest', axis: 'x', intersect: false },
+            scales: {
+              x: {
+                title: { display: true, text: 'Data' },
+                ticks: {
+                  autoSkip: false,
+                  maxRotation: 45,
+                  minRotation: 45
+                }
+              },
+              y: {
+                title: { display: true, text: 'Valor (R$)' },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        // atualiza totais
+        const totalIncome = incomeValues.reduce((sum, val) => sum + val, 0);
+        const totalExpense = expenseValues.reduce((sum, val) => sum + val, 0);
+        const balance = totalIncome - totalExpense;
+
+        document.getElementById("totalIncome").textContent = totalIncome.toFixed(2);
+        document.getElementById("totalExpense").textContent = totalExpense.toFixed(2);
+
+        const balanceSpan = document.getElementById("balance");
+        balanceSpan.textContent = balance.toFixed(2);
+        balanceSpan.style.color = balance < 0 ? 'red' : 'black';
+      }).catch(error => {
+        console.error('Erro ao carregar dados para o gráfico:', error);
+      });
+    }
+
+    // carrega gráfico inicial
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        renderTransactionChart(user.uid);
+      } else {
+        window.location.href = "../../index.html";
+      }
+    });
+  </script>
+</body>
+</html>

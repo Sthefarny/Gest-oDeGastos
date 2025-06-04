@@ -1,0 +1,166 @@
+/* Reset básico */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Corpo */
+body {
+  background-color: #0d0d0d;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+}
+
+/* Cabeçalho fixo com botão de logout */
+header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  padding: 20px;
+  z-index: 100;
+}
+
+header button {
+  background-color: transparent;
+  border: 1px solid #00ffff;
+  color: #00ffff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+header button:hover {
+  background-color: #00ffff22;
+}
+
+/* Centralização */
+.centralize {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding-top: 80px;
+}
+
+/* Formulário */
+form {
+  background-color: #1a1a1a;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 0 20px #00ffff55;
+  max-width: 450px;
+  width: 100%;
+}
+
+/* Campos */
+.form-field {
+  margin-bottom: 24px;
+}
+
+label {
+  display: block;
+  color: #00ffff;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+/* Input padrão */
+input,
+select {
+  width: 100%;
+  padding: 10px;
+  background-color: #111;
+  border: 1px solid #00ffff88;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 15px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: #00ffff;
+  box-shadow: 0 0 6px #00ffff;
+}
+
+/* Campo radio (receita/despesa) estilizado */
+.transaction-type-group {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.transaction-type-group input[type="radio"] {
+  display: none;
+}
+
+.transaction-type-group label {
+  flex: 1;
+  background-color: #111;
+  padding: 10px 0;
+  text-align: center;
+  border-radius: 6px;
+  border: 2px solid #00ffff55;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.transaction-type-group input[type="radio"]:checked + label {
+  background-color: #00ffff22;
+  border-color: #00ffff;
+  color: #00ffff;
+}
+
+/* Botões */
+button.solid {
+  background-color: #00ffff;
+  color: #111;
+  font-weight: bold;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 12px;
+  transition: 0.3s;
+}
+
+button.solid:disabled {
+  background-color: #00ffff55;
+  cursor: not-allowed;
+}
+
+button.solid:hover:not(:disabled) {
+  background-color: #00e0e0;
+  box-shadow: 0 0 10px #00ffff;
+}
+
+button.clear {
+  background: none;
+  color: #00ffff;
+  border: 1px solid #00ffff;
+  border-radius: 8px;
+  padding: 10px;
+  width: 100%;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button.clear:hover {
+  background-color: #00ffff11;
+}
+
+.error {
+  color: #ff4c4c;
+  font-size: 13px;
+  margin-top: 4px;
+  display: none;
+}
